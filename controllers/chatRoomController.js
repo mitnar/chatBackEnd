@@ -1,18 +1,72 @@
 'use strict';
 
-module.exports = {
+module.exports = class ChatRoomController {
+    constructor() {
+        this.users = [];
+        this.messages = [];
+    }
 
-    // присоединенеи пользователя в комнату
-    onConnect: (socket) => {
+    // join user to room
+    connectToRoom(socket, user){
 
-        const chatRoom = socket.handshake.query.chatRoom;
-        socket.join(chatRoom);
-    },
+        socket.join(user.chatRoomId);
 
-    // рассылка сообщения в комнату
-    onSendMessage: (socket, message) => {
+        // if user is already in the room
+        if(this.users.find(existsUser =>
+            existsUser.chatRoomId === user.chatRoomId &&
+            existsUser.user.toLowerCase() === user.user.toLowerCase()) === undefined) {
 
-        const chatRoom = socket.handshake.query.chatRoom;
-        socket.broadcast.to(chatRoom).emit('message', message);
+            this.users.push(user);
+            socket.broadcast.to(user.chatRoomId).emit('userJoin', user);
+        }
+    }
+
+    // send message from user
+    sendMessage (socket, message) {
+
+        socket.broadcast.to(message.chatRoomId).emit('message', message);
+        this.messages.push(message);
+    }
+
+    leaveRoom(socket, user) {
+
+        // if user is in the room
+        const userIndex = this.users.findIndex(existsUser =>
+            existsUser.chatRoomId === user.chatRoomId &&
+            existsUser.user.toLowerCase() === user.user.toLowerCase());
+
+        if(userIndex !== -1) { //
+            this.users.splice(userIndex, 1);
+
+            socket.broadcast.to(user.chatRoomId).emit('userLeave', user);
+            socket.leave(user.chatRoomId);
+        }
+    }
+
+    // get all messages from room
+    getMessages(socket, request) {
+
+        let messages = [];
+
+        // if user has joined the room
+        if (this.users.find(existsUser =>
+            existsUser.chatRoomId === request.chatRoomId &&
+            existsUser.user.toLowerCase() === request.user.toLowerCase()) !== undefined) {
+
+            messages = this.messages.filter(
+                message => message.chatRoomId === request.chatRoomId
+            );
+        }
+        else
+            messages = [];
+
+        socket.emit('setMessages', messages);
+    }
+
+    // get all user in room
+    getUsers(socket, chatRoomId) {
+        socket.emit('setUsers', this.users.filter(
+            user => user.chatRoomId === chatRoomId
+        ));
     }
 };
