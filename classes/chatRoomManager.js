@@ -1,13 +1,13 @@
 'use strict';
 
-module.exports = class ChatRoomController {
+module.exports = class ChatRoomManager {
     constructor() {
         this.users = [];
         this.messages = [];
     }
 
     // join user to room
-    connectToRoom(socket, user){
+    connectToRoom(socket, user) {
 
         socket.join(user.chatRoomId);
 
@@ -17,7 +17,7 @@ module.exports = class ChatRoomController {
             existsUser.user.toLowerCase() === user.user.toLowerCase()) === undefined) {
 
             this.users.push(user);
-            socket.broadcast.to(user.chatRoomId).emit('userJoin', user);
+            socket.broadcast.emit('userJoin', user);
         }
     }
 
@@ -38,8 +38,8 @@ module.exports = class ChatRoomController {
         if(userIndex !== -1) { //
             this.users.splice(userIndex, 1);
 
-            socket.broadcast.to(user.chatRoomId).emit('userLeave', user);
             socket.leave(user.chatRoomId);
+            socket.broadcast.emit('userLeave', user);
         }
     }
 
@@ -48,7 +48,7 @@ module.exports = class ChatRoomController {
 
         let messages = [];
 
-        // if user has joined the room
+        // if user is in the room
         if (this.users.find(existsUser =>
             existsUser.chatRoomId === request.chatRoomId &&
             existsUser.user.toLowerCase() === request.user.toLowerCase()) !== undefined) {
